@@ -5,23 +5,22 @@ import com.org.moneytransfers.dto.MoneyTransferInfoDto;
 import com.org.moneytransfers.dto.response.TransactionResponse;
 import com.org.moneytransfers.entities.AccountBalanceEntity;
 import com.org.moneytransfers.entities.AccountEntity;
+import com.org.moneytransfers.entities.TransactionEntity;
 import com.org.moneytransfers.exceptions.CustomerAccountNotFoundException;
 import com.org.moneytransfers.exceptions.TransactionException;
 import com.org.moneytransfers.repository.AccountBalanceRepository;
 import com.org.moneytransfers.repository.CustomerAccountRepository;
+import com.org.moneytransfers.repository.TransactionRepository;
 import com.org.moneytransfers.utils.Validator;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Bean;
 import org.springframework.orm.jpa.JpaSystemException;
 import org.springframework.stereotype.Service;
 
 import javax.transaction.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -37,6 +36,8 @@ public class TransactionService {
     @Autowired
     private AccountBalanceRepository accountBalanceRepository;
 
+    @Autowired
+    private TransactionRepository transactionRepository;
 
     @Transactional(rollbackOn = Exception.class)
     public TransactionResponse sendMoney(MoneyTransferInfoDto moneyTransferInfo) {
@@ -56,14 +57,18 @@ public class TransactionService {
                                         .orElseThrow(() -> new CustomerAccountNotFoundException("Target Account Not found in the System"));
 
                                 targetAccountInformation.setUpdatedOn(LocalDateTime.now(ZoneOffset.UTC));
-                                targetAccountInformation.setBalance(moneyTransferInfo.getAmountToBeTransferred().add(sourceAccountInfo.getAccountBalanceEntity().getBalance()));
+                                targetAccountInformation.setBalance(moneyTransferInfo.getAmountToBeTransferred()
+                                        .add(sourceAccountInfo.getAccountBalanceEntity().getBalance()));
 
-                                BigDecimal remainingBalance = sourceAccountInfo.getAccountBalanceEntity().getBalance().subtract(moneyTransferInfo.getAmountToBeTransferred());
+                                BigDecimal remainingBalance = sourceAccountInfo.getAccountBalanceEntity().getBalance()
+                                        .subtract(moneyTransferInfo.getAmountToBeTransferred());
                                 sourceAccountInfo.getAccountBalanceEntity().setBalance(remainingBalance);
                                 sourceAccountInfo.getAccountBalanceEntity().setUpdatedOn(LocalDateTime.now(ZoneOffset.UTC));
 
                                 accountRepository.save(sourceAccountInfo);
                                 accountBalanceRepository.save(targetAccountInformation);
+
+                                addTransactionValues(moneyTransferInfo);
                             }
                         } catch (Exception e) {
                             throw new TransactionException(ApplicationConstants.TRANSACTION_EXCEPTION, e);
@@ -86,5 +91,17 @@ public class TransactionService {
             throw new TransactionException(ApplicationConstants.TRANSACTION_EXCEPTION , exception);
         }
         return transactionResponse;
+    }
+
+    @Transactional(rollbackOn = JpaSystemException.class)
+    private void addTransactionValues(MoneyTransferInfoDto moneyTransferInfo) throws  JpaSystemException {
+            TransactionEntity transactionEntity = new TransactionEntity();
+
+            transactionEntity.setSourceAccountId(moneyTransferInfo.getSourceAccountId());
+            transactionEntity.setTargetAccountId(moneyTransferInfo.getTargetAccountId());
+            transactionEntity.setTransferAmount(moneyTransferInfo.getAmountToBeTransferred());
+            transactionEntity.setCurrency(moneyTransferInfo.getDestinationCurrency());
+
+            transactionRepository.save(transactionEntity);
     }
 }

@@ -29,16 +29,16 @@ public class TransactionEntity {
     @Column(name = "TARGET_ACCOUNT_ID",nullable = false, updatable = false)
     private @NotNull Long targetAccountId;
 
-    @Column(name = "TARGET_AMOUNT",nullable = false, updatable = false)
+    @Column(name = "TRANSFER_AMOUNT",nullable = false, updatable = false)
     private BigDecimal transferAmount;
 
     @Column(name = "TARGET_CURRENCY",nullable = false)
     private @NotNull String currency;
 
-    @Column(name = "CREATED_AT")
+    @Column(name = "CREATED_AT",nullable = false,updatable = false)
     private final LocalDateTime createdAt= LocalDateTime.now(ZoneOffset.UTC);
 
-    @Column(name = "UPDATED_ON")
+    @Column(name = "UPDATED_ON",nullable = false)
     private final LocalDateTime updatedOn= LocalDateTime.now(ZoneOffset.UTC);
 
 }
