@@ -20,6 +20,7 @@ public class AccountService {
     @Autowired
     private CustomerAccountRepository accountRepository;
 
+//    @Transactional(dontRollbackOn = ArithmeticException.class, rollbackOn = Exception.class)
     @Transactional(rollbackOn = Exception.class)
     public AccountCreationResponse createAccount(AccountEntity accountEntity) {
         AccountCreationResponse accountCreationResponse = null;
